@@ -53,4 +53,3 @@ pip install pandas matplotlib wordcloud
 
 This version is specifically tuned for the modern WhatsApp export format: `DD/MM/YYYY, HH:MM am/pm - Name: Message`. If your format differs (e.g., 24-hour time without am/pm), the Regex pattern in the `perform_analysis` function can be easily adjusted.
 
-Would you like me to show you how to customize the "Stop Words" list to filter out specific slang used in your group?
