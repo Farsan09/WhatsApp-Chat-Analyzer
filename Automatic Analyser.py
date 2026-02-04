@@ -7,6 +7,8 @@
 
 
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import re
 from tkinter import Tk, filedialog
