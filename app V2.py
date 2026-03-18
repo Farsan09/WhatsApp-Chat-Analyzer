@@ -28,11 +28,12 @@ def extract_emojis(text):
     return re.findall(r'[^\w\s,.;:!?-]', text)
 
 def clean_text(text):
-    # Added common chat filler words to stop_words
     stop_words = {
         "the","and","for","that","this","with","you","your","are","was","have","has",
-        "media","omitted","message","http","https","will","just","what","there","they"
+        "media","omitted","message","http","https","will","just","what","there","they",
+        "yeah","okay","know","like","want","going"
     }
+    # Original .ipynb logic: words longer than 3 chars, lowercased
     words = re.findall(r'\b[a-zA-Z]{4,}\b', str(text).lower())
     return [w for w in words if w not in stop_words]
 
@@ -90,14 +91,14 @@ if file:
 
         st.success(f"Analyzed {len(df)} messages successfully.")
 
-        # --- BAR CHARTS ---
+        # --- BAR CHARTS (Properly Labeled) ---
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Top Participants")
-            top_senders = df['Name'].value_counts().head(10)
-            if not top_senders.empty:
+            top_senders_series = df['Name'].value_counts().head(10)
+            if not top_senders_series.empty:
                 fig, ax = plt.subplots()
-                top_senders.plot(kind='bar', ax=ax, color='#25D366')
+                top_senders_series.plot(kind='bar', ax=ax, color='#25D366')
                 ax.set_xlabel("Participant Name")
                 ax.set_ylabel("Number of Messages")
                 plt.xticks(rotation=45, ha='right')
@@ -113,27 +114,36 @@ if file:
             ax.set_xticks(range(0, 24))
             st.pyplot(fig)
 
-        # --- WORD CLOUD SECTION ---
+        # --- WORD CLOUD PER TOP 5 SPEAKERS (Inspired by .ipynb) ---
         st.divider()
-        st.subheader("☁️ Most Frequent Words (Word Cloud)")
-        all_words = " ".join([" ".join(clean_text(m)) for m in df['Message']])
+        st.subheader("☁️ Word Clouds: Top 5 Speakers")
         
-        if len(all_words.strip()) > 10:
-            wordcloud = WordCloud(width=800, height=400, background_color='white', 
-                                  colormap='viridis', min_font_size=10).generate(all_words)
-            fig_wc, ax_wc = plt.subplots(figsize=(10, 5))
-            ax_wc.imshow(wordcloud, interpolation='bilinear')
-            ax_wc.axis("off")
-            st.pyplot(fig_wc)
-        else:
-            st.write("Not enough text data to generate a word cloud.")
+        top_5_names = df['Name'].value_counts().head(5).index.tolist()
+        
+        # Display clouds in a grid (2 rows, 3 columns / 3 rows, 2 columns)
+        cols = st.columns(2) 
+        
+        for i, name in enumerate(top_5_names):
+            user_msgs = df[df['Name'] == name]['Message']
+            user_text = " ".join([" ".join(clean_text(m)) for m in user_msgs])
+            
+            with cols[i % 2]:
+                if len(user_text.strip()) > 20:
+                    wc = WordCloud(width=400, height=300, background_color='white', colormap='Set2').generate(user_text)
+                    fig_wc, ax_wc = plt.subplots()
+                    ax_wc.imshow(wc, interpolation='bilinear')
+                    ax_wc.set_title(f"Words by {name}", fontsize=14, fontweight='bold')
+                    ax_wc.axis("off")
+                    st.pyplot(fig_wc)
+                else:
+                    st.write(f"Not enough data for {name}'s Word Cloud.")
 
         # --- EMOJI & KEYWORDS ---
         st.divider()
         col_e1, col_e2 = st.columns(2)
         
         with col_e1:
-            st.subheader("✨ Top Emojis")
+            st.subheader("✨ Top Emojis (All Speakers)")
             all_emojis = []
             for m in df['Message']:
                 all_emojis.extend(extract_emojis(str(m)))
@@ -142,13 +152,11 @@ if file:
             if emo_counts:
                 emo_df = pd.DataFrame(emo_counts, columns=['Emoji', 'Total Uses'])
                 st.write(emo_df.to_html(index=False, classes='emoji-table', escape=False), unsafe_allow_html=True)
-            else:
-                st.write("No emojis detected.")
 
         with col_e2:
             st.subheader("👤 Signature Keywords")
             keyword_data = []
-            for user in df['Name'].value_counts().head(5).index:
+            for user in top_5_names:
                 u_text = " ".join(df[df['Name']==user]['Message'])
                 top_word = Counter(clean_text(u_text)).most_common(1)
                 word = top_word[0][0] if top_word else "N/A"
@@ -157,7 +165,7 @@ if file:
             st.write(pd.DataFrame(keyword_data).to_html(index=False, classes='emoji-table'), unsafe_allow_html=True)
 
         st.divider()
-        search_query = st.text_input("🔍 Search Chat History")
+        search_query = st.text_input("🔍 Search Chat History (Emoji or Word)")
         if search_query:
             results = df[df['Message'].str.contains(search_query, case=False, na=False)]
             st.write(f"Found {len(results)} matches:")
