@@ -3,6 +3,7 @@ import re
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import Counter
+from wordcloud import WordCloud
 import io
 
 # --- 1. CONFIGURATION & GLOBAL STYLING ---
@@ -27,7 +28,11 @@ def extract_emojis(text):
     return re.findall(r'[^\w\s,.;:!?-]', text)
 
 def clean_text(text):
-    stop_words = {"the","and","for","that","this","with","you","your","are","was","media","omitted","message","have","has"}
+    # Added common chat filler words to stop_words
+    stop_words = {
+        "the","and","for","that","this","with","you","your","are","was","have","has",
+        "media","omitted","message","http","https","will","just","what","there","they"
+    }
     words = re.findall(r'\b[a-zA-Z]{4,}\b', str(text).lower())
     return [w for w in words if w not in stop_words]
 
@@ -85,8 +90,8 @@ if file:
 
         st.success(f"Analyzed {len(df)} messages successfully.")
 
+        # --- BAR CHARTS ---
         col1, col2 = st.columns(2)
-        
         with col1:
             st.subheader("Top Participants")
             top_senders = df['Name'].value_counts().head(10)
@@ -108,6 +113,22 @@ if file:
             ax.set_xticks(range(0, 24))
             st.pyplot(fig)
 
+        # --- WORD CLOUD SECTION ---
+        st.divider()
+        st.subheader("☁️ Most Frequent Words (Word Cloud)")
+        all_words = " ".join([" ".join(clean_text(m)) for m in df['Message']])
+        
+        if len(all_words.strip()) > 10:
+            wordcloud = WordCloud(width=800, height=400, background_color='white', 
+                                  colormap='viridis', min_font_size=10).generate(all_words)
+            fig_wc, ax_wc = plt.subplots(figsize=(10, 5))
+            ax_wc.imshow(wordcloud, interpolation='bilinear')
+            ax_wc.axis("off")
+            st.pyplot(fig_wc)
+        else:
+            st.write("Not enough text data to generate a word cloud.")
+
+        # --- EMOJI & KEYWORDS ---
         st.divider()
         col_e1, col_e2 = st.columns(2)
         
@@ -128,18 +149,3 @@ if file:
             st.subheader("👤 Signature Keywords")
             keyword_data = []
             for user in df['Name'].value_counts().head(5).index:
-                u_text = " ".join(df[df['Name']==user]['Message'])
-                top_word = Counter(clean_text(u_text)).most_common(1)
-                word = top_word[0][0] if top_word else "N/A"
-                keyword_data.append({"User": user, "Favorite Word": word})
-            
-            st.write(pd.DataFrame(keyword_data).to_html(index=False, classes='emoji-table'), unsafe_allow_html=True)
-
-        st.divider()
-        search_query = st.text_input("🔍 Search Chat History")
-        if search_query:
-            results = df[df['Message'].str.contains(search_query, case=False, na=False)]
-            st.write(f"Found {len(results)} matches:")
-            st.write(results[['Date', 'Name', 'Message']].head(20).to_html(index=False, classes='emoji-table'), unsafe_allow_html=True)
-    else:
-        st.error("Format Error: Ensure the file is an exported WhatsApp .txt file.")
