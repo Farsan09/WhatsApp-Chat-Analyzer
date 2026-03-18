@@ -149,3 +149,18 @@ if file:
             st.subheader("👤 Signature Keywords")
             keyword_data = []
             for user in df['Name'].value_counts().head(5).index:
+                u_text = " ".join(df[df['Name']==user]['Message'])
+                top_word = Counter(clean_text(u_text)).most_common(1)
+                word = top_word[0][0] if top_word else "N/A"
+                keyword_data.append({"User": user, "Favorite Word": word})
+            
+            st.write(pd.DataFrame(keyword_data).to_html(index=False, classes='emoji-table'), unsafe_allow_html=True)
+
+        st.divider()
+        search_query = st.text_input("🔍 Search Chat History")
+        if search_query:
+            results = df[df['Message'].str.contains(search_query, case=False, na=False)]
+            st.write(f"Found {len(results)} matches:")
+            st.write(results[['Date', 'Name', 'Message']].head(20).to_html(index=False, classes='emoji-table'), unsafe_allow_html=True)
+    else:
+        st.error("Format Error: Ensure the file is an exported WhatsApp .txt file.")
